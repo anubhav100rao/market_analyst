@@ -208,6 +208,71 @@ class TestPortfolioAnalysis:
         logger.info("test_empty_portfolio_rejected passed")
 
 
+# ── POST /parse_intent ────────────────────────────────────────────
+
+
+class TestParseIntent:
+    @patch("backend.api.fastapi_server.parse_intent_cached")
+    def test_success(self, mock_parse):
+        mock_parse.return_value = {
+            "stocks": ["RELIANCE.NS"],
+            "analysis_type": "single",
+            "parsed_query": "Analyze Reliance",
+        }
+
+        response = client.post("/parse_intent", json={
+            "query": "How is Reliance doing?",
+        })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["stocks"] == ["RELIANCE.NS"]
+        assert data["analysis_type"] == "single"
+        assert data["parsed_query"] == "Analyze Reliance"
+        mock_parse.assert_called_once_with("How is Reliance doing?")
+        logger.info("test_success passed")
+
+    @patch("backend.api.fastapi_server.parse_intent_cached")
+    def test_compare_intent(self, mock_parse):
+        mock_parse.return_value = {
+            "stocks": ["TCS.NS", "INFY.NS"],
+            "analysis_type": "compare",
+            "parsed_query": "Compare TCS and Infosys",
+        }
+
+        response = client.post("/parse_intent", json={
+            "query": "Compare TCS and Infosys",
+        })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["stocks"]) == 2
+        assert data["analysis_type"] == "compare"
+        logger.info("test_compare_intent passed")
+
+    @patch("backend.api.fastapi_server.parse_intent_cached")
+    def test_no_stocks_detected(self, mock_parse):
+        mock_parse.return_value = {
+            "stocks": [],
+            "analysis_type": "single",
+            "parsed_query": "What is the market like?",
+        }
+
+        response = client.post("/parse_intent", json={
+            "query": "What is the market like?",
+        })
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["stocks"] == []
+        logger.info("test_no_stocks_detected passed")
+
+    def test_empty_query_rejected(self):
+        response = client.post("/parse_intent", json={"query": ""})
+        assert response.status_code == 422
+        logger.info("test_empty_query_rejected passed")
+
+
 # ── POST /chat ────────────────────────────────────────────────────
 
 

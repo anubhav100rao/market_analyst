@@ -1,12 +1,8 @@
 """
 Streamlit Frontend – AI Market Analyst UI.
 
-Features:
-  - Chat interface for free-form market questions
-  - Single stock analysis
-  - Stock comparison
-  - Portfolio analysis panel
-  - Results display with scores and charts
+Single unified query box that uses intent analysis to determine
+the type of analysis (single/compare/portfolio) automatically.
 """
 
 from __future__ import annotations
@@ -57,6 +53,24 @@ st.markdown("""
     .buy { color: #00e676; }
     .sell { color: #ff5252; }
     .hold { color: #ffd740; }
+    .intent-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 16px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin: 0.15rem;
+    }
+    .intent-badge-type {
+        background: #667eea22;
+        color: #667eea;
+        border: 1px solid #667eea44;
+    }
+    .intent-badge-stock {
+        background: #00e67622;
+        color: #00e676;
+        border: 1px solid #00e67644;
+    }
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
     }
@@ -81,20 +95,57 @@ def call_api(endpoint: str, payload: dict) -> dict | None:
         logger.info("API response received: %d bytes", len(str(data)))
         return data
     except requests.exceptions.ConnectionError:
-        st.error("❌ Cannot connect to backend. Make sure the API is running on port 8000.")
+        st.error("Cannot connect to backend. Make sure the API is running on port 8000.")
         logger.error("Connection error to %s", url)
         return None
     except requests.exceptions.Timeout:
-        st.error("⏰ Request timed out. Analysis may take longer for multiple stocks.")
+        st.error("Request timed out. Analysis may take longer for multiple stocks.")
         logger.error("Timeout calling %s", url)
         return None
     except Exception as e:
-        st.error(f"❌ API error: {e}")
+        st.error(f"API error: {e}")
         logger.error("API error: %s", e)
         return None
 
 
+def parse_intent(query: str) -> dict | None:
+    """Call the /parse_intent endpoint to extract stocks and analysis type."""
+    url = f"{API_BASE_URL}/parse_intent"
+    logger.info("Parsing intent: %s", url)
+    try:
+        response = requests.post(url, json={"query": query}, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        logger.info("Intent parsed: %s", data)
+        return data
+    except Exception as e:
+        logger.error("Intent parsing error: %s", e)
+        return None
+
+
 # ── Display Functions ─────────────────────────────────────────────
+
+
+def display_intent(intent: dict):
+    """Show the detected intent as badges above the results."""
+    stocks = intent.get("stocks", [])
+    analysis_type = intent.get("analysis_type", "single")
+    parsed_query = intent.get("parsed_query", "")
+
+    type_labels = {
+        "single": "Single Stock Analysis",
+        "compare": "Stock Comparison",
+        "portfolio": "Portfolio Analysis",
+    }
+
+    badges_html = f'<span class="intent-badge intent-badge-type">{type_labels.get(analysis_type, analysis_type)}</span>'
+    for s in stocks:
+        badges_html += f' <span class="intent-badge intent-badge-stock">{s}</span>'
+
+    st.markdown(badges_html, unsafe_allow_html=True)
+
+    if parsed_query:
+        st.caption(f"Parsed: {parsed_query}")
 
 
 def display_score(label: str, score: float, max_score: float = 10.0):
@@ -230,18 +281,20 @@ with st.sidebar:
 
     st.divider()
 
-    mode = st.radio(
-        "Analysis Mode",
-        ["💬 Chat", "📊 Single Stock", "⚖️ Compare Stocks", "📁 Portfolio"],
-        index=0,
-    )
-
-    st.divider()
-
     st.markdown("### 🛠️ Settings")
     api_url = st.text_input("API URL", value=API_BASE_URL)
     if api_url != API_BASE_URL:
         API_BASE_URL = api_url
+
+    st.divider()
+
+    st.markdown("### How to use")
+    st.markdown("""
+    Just type your question naturally:
+    - *"How is Reliance doing?"* → single stock
+    - *"Compare TCS and Infosys"* → comparison
+    - *"Analyze Reliance, TCS, HDFC Bank"* → portfolio
+    """)
 
     st.divider()
     st.caption("Built with LangGraph + Gemini + FastAPI")
@@ -250,85 +303,61 @@ with st.sidebar:
 # ── Main Content ──────────────────────────────────────────────────
 
 st.markdown('<div class="main-header">📈 AI Market Analyst</div>', unsafe_allow_html=True)
+st.markdown("### Ask any market question")
 
-if mode == "💬 Chat":
-    st.markdown("### Ask any market question")
+# Chat history
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-    # Chat history
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+# Display chat history
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        if msg["role"] == "assistant" and isinstance(msg["content"], dict):
+            if msg.get("intent"):
+                display_intent(msg["intent"])
+            display_results(msg["content"])
+        else:
+            st.write(msg["content"])
 
-    # Display chat history
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            if msg["role"] == "assistant" and isinstance(msg["content"], dict):
-                display_results(msg["content"])
-            else:
-                st.write(msg["content"])
+# Chat input – single unified query box
+if prompt := st.chat_input("e.g. How is Reliance doing? / Compare TCS and Infosys"):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.write(prompt)
 
-    # Chat input
-    if prompt := st.chat_input("e.g. How is Reliance doing?"):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.write(prompt)
+    with st.chat_message("assistant"):
+        # Step 1: Parse intent to show detected stocks/type
+        with st.spinner("🔍 Understanding your query..."):
+            intent = parse_intent(prompt)
 
-        with st.chat_message("assistant"):
-            with st.spinner("🔍 Analyzing..."):
+        if intent and intent.get("stocks"):
+            display_intent(intent)
+
+            # Step 2: Run full analysis via /chat
+            with st.spinner("📊 Running analysis..."):
                 data = call_api("/chat", {"query": prompt})
-                if data:
-                    display_results(data)
-                    st.session_state.messages.append({"role": "assistant", "content": data})
-                else:
-                    st.warning("Could not get analysis. Check backend connection.")
 
-elif mode == "📊 Single Stock":
-    st.markdown("### Analyze a Single Stock")
-
-    ticker = st.text_input(
-        "Stock Ticker",
-        placeholder="e.g. RELIANCE.NS",
-        help="Use NSE format: RELIANCE.NS, TCS.NS, INFY.NS",
-    )
-
-    if st.button("🔍 Analyze", type="primary", disabled=not ticker):
-        with st.spinner(f"Analyzing {ticker}..."):
-            data = call_api("/analyze_stock", {"stock": ticker})
             if data:
                 display_results(data)
-
-elif mode == "⚖️ Compare Stocks":
-    st.markdown("### Compare Two Stocks")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        stock_a = st.text_input("Stock A", placeholder="e.g. TATAMOTORS.NS")
-    with col2:
-        stock_b = st.text_input("Stock B", placeholder="e.g. M&M.NS")
-
-    if st.button("⚖️ Compare", type="primary", disabled=not (stock_a and stock_b)):
-        with st.spinner(f"Comparing {stock_a} vs {stock_b}..."):
-            data = call_api("/compare_stocks", {"stock_a": stock_a, "stock_b": stock_b})
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": data,
+                    "intent": intent,
+                })
+            else:
+                st.warning("Could not get analysis. Check backend connection.")
+        elif intent:
+            st.warning("Could not identify any stocks in your query. "
+                       "Try mentioning specific stock names like Reliance, TCS, Infosys, etc.")
+        else:
+            # Fallback: if /parse_intent fails, try /chat directly
+            with st.spinner("📊 Analyzing..."):
+                data = call_api("/chat", {"query": prompt})
             if data:
                 display_results(data)
-
-elif mode == "📁 Portfolio":
-    st.markdown("### Portfolio Analysis")
-
-    st.markdown("Enter your portfolio stocks (one per line):")
-    portfolio_text = st.text_area(
-        "Stocks",
-        placeholder="RELIANCE.NS\nTCS.NS\nINFY.NS\nHDFCBANK.NS",
-        height=150,
-        label_visibility="collapsed",
-    )
-
-    stocks = [s.strip() for s in portfolio_text.split("\n") if s.strip()]
-
-    if stocks:
-        st.caption(f"📊 {len(stocks)} stocks in portfolio")
-
-    if st.button("📁 Analyze Portfolio", type="primary", disabled=not stocks):
-        with st.spinner(f"Analyzing {len(stocks)} stocks..."):
-            data = call_api("/portfolio_analysis", {"stocks": stocks})
-            if data:
-                display_results(data)
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": data,
+                })
+            else:
+                st.warning("Could not get analysis. Check backend connection.")

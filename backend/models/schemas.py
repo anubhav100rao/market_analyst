@@ -149,6 +149,20 @@ class AnalysisResponse(BaseModel):
     reasoning: str = ""
 
 
+class IntentResponse(BaseModel):
+    """Response from /parse_intent – detected stocks and analysis type."""
+
+    stocks: list[str] = Field(default_factory=list)
+    analysis_type: str = Field(
+        default="single",
+        description="Detected analysis type: single, compare, or portfolio",
+    )
+    parsed_query: str = Field(
+        default="",
+        description="Cleaned version of the user query",
+    )
+
+
 class ErrorResponse(BaseModel):
     """Standard error envelope."""
 

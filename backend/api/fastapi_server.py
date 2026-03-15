@@ -23,6 +23,7 @@ from backend.models.schemas import (
     CompareStocksRequest,
     ErrorResponse,
     FundamentalAnalysis,
+    IntentResponse,
     PortfolioRequest,
     Recommendation,
     SentimentAnalysis,
@@ -30,6 +31,7 @@ from backend.models.schemas import (
     TechnicalAnalysis,
 )
 from backend.workflows.market_graph import (
+    parse_intent_cached,
     run_analysis,
     run_compare_stocks,
     run_portfolio_analysis,
@@ -200,6 +202,23 @@ async def portfolio_analysis(request: PortfolioRequest):
         return _build_response(result, AnalysisType.PORTFOLIO)
     except Exception as e:
         logger.error("Error analyzing portfolio: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/parse_intent", response_model=IntentResponse)
+async def parse_intent(request: ChatRequest):
+    """Parse a free-form query to extract stocks and analysis type."""
+    logger.info("POST /parse_intent – query=%r", request.query)
+
+    try:
+        intent = await parse_intent_cached(request.query)
+        return IntentResponse(
+            stocks=intent.get("stocks", []),
+            analysis_type=intent.get("analysis_type", "single"),
+            parsed_query=intent.get("parsed_query", request.query),
+        )
+    except Exception as e:
+        logger.error("Error parsing intent: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 

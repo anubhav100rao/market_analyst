@@ -236,16 +236,39 @@ async def _check_and_run_graph(initial_state: dict) -> dict:
     return result
 
 
+async def parse_intent_cached(query: str) -> dict:
+    """
+    Parse user intent with caching to avoid redundant LLM calls.
+
+    Cache key is the normalised query string. Returns the intent dict
+    with stocks, analysis_type, and parsed_query.
+    """
+    cache_key = query.strip().lower()
+
+    cached = await SQLiteMCPTool.get_cache(
+        "intent_analysis", cache_key, max_age_seconds=86400,
+    )
+    if cached:
+        logger.info("Intent cache HIT for %r", cache_key)
+        return cached
+
+    logger.info("Intent cache MISS for %r – calling LLM", cache_key)
+    intent = analyze_intent(query)
+
+    await SQLiteMCPTool.set_cache("intent_analysis", cache_key, intent)
+    return intent
+
+
 async def run_analysis(query: str) -> dict:
     """
     Run the full analysis pipeline from a free-form query.
-    1. Always run the intent analyzer (1 LLM call).
+    1. Parse intent (cached to avoid duplicate LLM calls).
     2. Check the graph cache for those parsed stocks.
     3. Run graph on miss.
     """
     logger.info("Starting analysis pipeline for query: %r", query)
 
-    intent = analyze_intent(query)
+    intent = await parse_intent_cached(query)
     initial_state = {
         "query": query,
         "stocks": intent["stocks"],

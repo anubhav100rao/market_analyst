@@ -15,6 +15,7 @@ from backend.workflows.market_graph import (
     compile_market_graph,
     fundamental_node,
     intent_node,
+    parse_intent_cached,
     run_analysis,
     run_compare_stocks,
     run_portfolio_analysis,
@@ -274,3 +275,66 @@ class TestRunAnalysis:
         assert result["recommendation"] == "BUY"
         mock_intent.assert_called_once_with("How is Reliance?")
         logger.info("test_chat_pipeline passed – free-form query E2E")
+
+
+# ── Intent Caching Tests ─────────────────────────────────────────
+
+
+class TestParseIntentCached:
+    @patch("backend.workflows.market_graph.SQLiteMCPTool.set_cache")
+    @patch("backend.workflows.market_graph.SQLiteMCPTool.get_cache")
+    @patch("backend.workflows.market_graph.analyze_intent")
+    async def test_cache_miss_calls_llm(self, mock_intent, mock_get_cache, mock_set_cache):
+        """On cache miss, call LLM and store result."""
+        mock_get_cache.return_value = None
+        mock_intent.return_value = {
+            "stocks": ["RELIANCE.NS"],
+            "analysis_type": "single",
+            "parsed_query": "Analyze Reliance",
+        }
+        mock_set_cache.return_value = None
+
+        result = await parse_intent_cached("How is Reliance?")
+
+        assert result["stocks"] == ["RELIANCE.NS"]
+        assert result["analysis_type"] == "single"
+        mock_intent.assert_called_once_with("How is Reliance?")
+        mock_get_cache.assert_called_once()
+        mock_set_cache.assert_called_once()
+        logger.info("test_cache_miss_calls_llm passed")
+
+    @patch("backend.workflows.market_graph.SQLiteMCPTool.get_cache")
+    @patch("backend.workflows.market_graph.analyze_intent")
+    async def test_cache_hit_skips_llm(self, mock_intent, mock_get_cache):
+        """On cache hit, return cached intent without calling LLM."""
+        mock_get_cache.return_value = {
+            "stocks": ["INFY.NS"],
+            "analysis_type": "single",
+            "parsed_query": "Analyze Infosys",
+        }
+
+        result = await parse_intent_cached("Tell me about Infosys")
+
+        assert result["stocks"] == ["INFY.NS"]
+        mock_intent.assert_not_called()
+        logger.info("test_cache_hit_skips_llm passed")
+
+    @patch("backend.workflows.market_graph.SQLiteMCPTool.set_cache")
+    @patch("backend.workflows.market_graph.SQLiteMCPTool.get_cache")
+    @patch("backend.workflows.market_graph.analyze_intent")
+    async def test_normalises_cache_key(self, mock_intent, mock_get_cache, mock_set_cache):
+        """Cache key is normalised (lowered and stripped)."""
+        mock_get_cache.return_value = None
+        mock_set_cache.return_value = None
+        mock_intent.return_value = {
+            "stocks": ["TCS.NS"],
+            "analysis_type": "single",
+            "parsed_query": "Analyze TCS",
+        }
+
+        await parse_intent_cached("  How Is TCS?  ")
+
+        # Verify cache was queried with normalised key
+        call_args = mock_get_cache.call_args
+        assert call_args[0][1] == "how is tcs?"
+        logger.info("test_normalises_cache_key passed")
