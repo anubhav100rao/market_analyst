@@ -80,36 +80,36 @@ Comprehensive task breakdown derived from [architecture.md](file:///Users/anubha
 ---
 
 ## Phase 4 · LangGraph Orchestration
-- [ ] **P4-1** Create `backend/workflows/market_graph.py`
-- [ ] **P4-2** Define StateGraph with nodes: `fundamental`, `technical`, `sentiment`, `aggregator`
-- [ ] **P4-3** Wire edges: START → [fundamental, technical, sentiment] (parallel fan-out)
-- [ ] **P4-4** Wire edges: [fundamental, technical, sentiment] → aggregator (fan-in)
-- [ ] **P4-5** Add intent analyzer node at entry point (parse query → extract stock names, analysis type)
-- [ ] **P4-6** Support single stock analysis, comparison, and portfolio workflows
-- [ ] **P4-7** Integration tests for full graph execution (mocked LLM + mocked tools)
+- [x] **P4-1** Create `backend/workflows/market_graph.py`
+- [x] **P4-2** Define StateGraph with nodes: `fundamental`, `technical`, `sentiment`, `aggregator`
+- [x] **P4-3** Wire edges: START → [fundamental, technical, sentiment] (parallel fan-out)
+- [x] **P4-4** Wire edges: [fundamental, technical, sentiment] → aggregator (fan-in)
+- [x] **P4-5** Add intent analyzer node at entry point (parse query → extract stock names, analysis type)
+- [x] **P4-6** Support single stock analysis, comparison, and portfolio workflows
+- [x] **P4-7** Integration tests for full graph execution (mocked LLM + mocked tools)
 
 ---
 
 ## Phase 5 · FastAPI Backend
-- [ ] **P5-1** Create `backend/api/fastapi_server.py`
-- [ ] **P5-2** Implement `POST /analyze_stock` — single stock analysis
-- [ ] **P5-3** Implement `POST /compare_stocks` — head-to-head comparison
-- [ ] **P5-4** Implement `POST /portfolio_analysis` — multi-stock portfolio health
-- [ ] **P5-5** Implement `POST /chat` — freeform query endpoint
-- [ ] **P5-6** Add streaming response support (SSE / WebSocket)
-- [ ] **P5-7** Add error handling middleware, CORS config
-- [ ] **P5-8** API tests (TestClient, mocked workflow)
+- [x] **P5-1** Create `backend/api/fastapi_server.py`
+- [x] **P5-2** `POST /analyze_stock` endpoint
+- [x] **P5-3** `POST /compare_stocks` endpoint
+- [x] **P5-4** `POST /portfolio_analysis` endpoint
+- [x] **P5-5** `POST /chat` (free-form query → full pipeline)
+- [x] **P5-6** Streaming response support (SSE or chunked JSON)
+- [x] **P5-7** Error handling middleware, CORS
+- [x] **P5-8** API tests (TestClient, mock workflow layer)
 
 ---
 
 ## Phase 6 · Streamlit Frontend
-- [ ] **P6-1** Create `frontend/streamlit_app.py`
-- [ ] **P6-2** Build chat interface (user input → display AI response)
-- [ ] **P6-3** Build portfolio input panel (add/remove stocks)
-- [ ] **P6-4** Display analysis results with sections (Fundamental, Technical, Sentiment, Recommendation)
-- [ ] **P6-5** Add stock price charts (using plotly or streamlit native charts)
-- [ ] **P6-6** Wire frontend to FastAPI backend endpoints
-- [ ] **P6-7** Manual UI testing
+- [x] **P6-1** Create `frontend/streamlit_app.py`
+- [x] **P6-2** Chat interface (text input → display streamed analysis)
+- [x] **P6-3** Stock/portfolio input panel (sidebar)
+- [x] **P6-4** Display multi-dimensional analysis results (cards / expandable sections)
+- [x] **P6-5** Basic stock price chart (line chart from price history)
+- [x] **P6-6** Wire Streamlit → FastAPI backend
+- [x] **P6-7** Manual UI testing
 
 ---
 
