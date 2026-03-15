@@ -1,15 +1,11 @@
-import { useState } from 'react';
-import { Sidebar, type ViewType } from './components/Sidebar';
+import { Sidebar } from './components/Sidebar';
 import { ChatPanel } from './components/ChatPanel';
-import { Dashboard } from './components/Dashboard';
 
 function App() {
-  const [activeView, setActiveView] = useState<ViewType>('chat');
-
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw', background: 'var(--bg-color)' }}>
-      <Sidebar activeView={activeView} onViewChange={setActiveView} />
-      
+      <Sidebar />
+
       <main style={{ flex: 1, padding: '32px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         <div style={{
           width: '100%',
@@ -18,10 +14,7 @@ function App() {
           height: '100%',
           position: 'relative'
         }}>
-          {activeView === 'chat' && <ChatPanel />}
-          {activeView === 'dashboard' && <Dashboard type="analyze" />}
-          {activeView === 'compare' && <Dashboard type="compare" />}
-          {activeView === 'portfolio' && <Dashboard type="portfolio" />}
+          <ChatPanel />
         </div>
       </main>
     </div>

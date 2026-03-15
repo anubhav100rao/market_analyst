@@ -1,22 +1,7 @@
 import React from 'react';
-import { LayoutDashboard, MessageSquare, Briefcase, BarChart2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { MessageSquare } from 'lucide-react';
 
-export type ViewType = 'dashboard' | 'chat' | 'portfolio' | 'compare';
-
-interface SidebarProps {
-  activeView: ViewType;
-  onViewChange: (view: ViewType) => void;
-}
-
-const navItems = [
-  { id: 'dashboard', label: 'Analyze', icon: LayoutDashboard },
-  { id: 'compare', label: 'Compare', icon: BarChart2 },
-  { id: 'portfolio', label: 'Portfolio', icon: Briefcase },
-  { id: 'chat', label: 'AI Chat', icon: MessageSquare },
-] as const;
-
-export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) => {
+export const Sidebar: React.FC = () => {
   return (
     <div style={{
       width: '260px',
@@ -47,52 +32,37 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
         </div>
       </div>
 
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {navItems.map((item) => {
-          const isActive = activeView === item.id;
-          const Icon = item.icon;
-          
-          return (
-            <motion.button
-              key={item.id}
-              onClick={() => onViewChange(item.id as ViewType)}
-              whileHover={{ scale: 1.02, backgroundColor: 'var(--bg-surface-hover)' }}
-              whileTap={{ scale: 0.98 }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '12px 16px',
-                borderRadius: '12px',
-                border: 'none',
-                background: isActive ? 'var(--bg-surface)' : 'transparent',
-                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                cursor: 'pointer',
-                textAlign: 'left',
-                fontSize: '15px',
-                fontWeight: isActive ? 500 : 400,
-                transition: 'color 0.2s ease',
-              }}
-            >
-              <Icon size={20} color={isActive ? 'var(--accent-color)' : 'currentColor'} />
-              {item.label}
-              {isActive && (
-                <motion.div
-                  layoutId="active-indicator"
-                  style={{
-                    position: 'absolute',
-                    left: 0,
-                    width: '3px',
-                    height: '24px',
-                    background: 'var(--accent-color)',
-                    borderRadius: '0 4px 4px 0'
-                  }}
-                />
-              )}
-            </motion.button>
-          );
-        })}
-      </nav>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        padding: '12px 16px',
+        borderRadius: '12px',
+        background: 'var(--bg-surface)',
+        color: 'var(--text-primary)',
+        fontSize: '15px',
+        fontWeight: 500,
+      }}>
+        <MessageSquare size={20} color="var(--accent-color)" />
+        AI Chat
+      </div>
+
+      <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+        <p style={{ fontWeight: 500, color: 'var(--text-primary)', marginBottom: '8px' }}>How to use</p>
+        <p>Just type your question naturally:</p>
+        <ul style={{ paddingLeft: '16px', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <li>"How is Reliance doing?"</li>
+          <li>"Compare TCS and Infosys"</li>
+          <li>"Analyze Reliance, TCS, HDFC Bank"</li>
+        </ul>
+        <p style={{ marginTop: '12px', fontSize: '12px', opacity: 0.7 }}>
+          AI automatically detects stocks and analysis type from your query.
+        </p>
+      </div>
+
+      <div style={{ marginTop: 'auto', fontSize: '12px', color: 'var(--text-secondary)', opacity: 0.5 }}>
+        Built with LangGraph + Gemini + FastAPI
+      </div>
     </div>
   );
 };
