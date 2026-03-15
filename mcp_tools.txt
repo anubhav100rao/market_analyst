@@ -1,0 +1,5 @@
+query
+schema
+table_info
+explain
+list_databases

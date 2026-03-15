@@ -15,6 +15,8 @@ from typing import Any
 
 from duckduckgo_search import DDGS
 
+from backend.tools.sqlite_mcp_tool import SQLiteMCPTool
+
 logger = logging.getLogger("market_analyst.tools.duckduckgo")
 
 # Simple rate-limit: minimum seconds between requests
@@ -28,7 +30,7 @@ class DuckDuckGoTool:
     # ── News Search ───────────────────────────────────────────────
 
     @staticmethod
-    def search_news(
+    async def search_news(
         query: str,
         max_results: int = 10,
     ) -> dict[str, Any]:
@@ -45,6 +47,10 @@ class DuckDuckGoTool:
         global _last_request_time
 
         logger.info("Searching news: query=%r, max_results=%d", query, max_results)
+        cache_key = f"news_{max_results}_{query}"
+        cached = await SQLiteMCPTool.get_cache("duckduckgo", cache_key, max_age_seconds=3600)
+        if cached:
+            return cached
 
         try:
             # Rate limiting
@@ -70,11 +76,13 @@ class DuckDuckGoTool:
                 })
 
             logger.info("Found %d news articles for %r", len(articles), query)
-            return {
+            result = {
                 "query": query,
                 "results": articles,
                 "count": len(articles),
             }
+            await SQLiteMCPTool.set_cache("duckduckgo", cache_key, result)
+            return result
 
         except Exception as e:
             logger.error("Error searching news for %r: %s", query, e)
@@ -88,7 +96,7 @@ class DuckDuckGoTool:
     # ── Web Search ────────────────────────────────────────────────
 
     @staticmethod
-    def search_web(
+    async def search_web(
         query: str,
         max_results: int = 10,
     ) -> dict[str, Any]:
@@ -105,6 +113,10 @@ class DuckDuckGoTool:
         global _last_request_time
 
         logger.info("Web search: query=%r, max_results=%d", query, max_results)
+        cache_key = f"web_{max_results}_{query}"
+        cached = await SQLiteMCPTool.get_cache("duckduckgo", cache_key, max_age_seconds=3600) # 1 hour cache
+        if cached:
+            return cached
 
         try:
             elapsed = time.time() - _last_request_time
@@ -127,11 +139,13 @@ class DuckDuckGoTool:
                 })
 
             logger.info("Found %d web results for %r", len(results), query)
-            return {
+            result = {
                 "query": query,
                 "results": results,
                 "count": len(results),
             }
+            await SQLiteMCPTool.set_cache("duckduckgo", cache_key, result)
+            return result
 
         except Exception as e:
             logger.error("Error in web search for %r: %s", query, e)

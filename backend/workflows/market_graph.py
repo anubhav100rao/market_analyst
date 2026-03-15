@@ -20,6 +20,7 @@ from backend.agents.intent_analyzer import analyze_intent, analyze_intent_from_r
 from backend.agents.master_agent import aggregate_analysis
 from backend.agents.sentiment_agent import analyze_sentiment
 from backend.agents.technical_agent import analyze_technical
+from backend.tools.sqlite_mcp_tool import SQLiteMCPTool
 
 logger = logging.getLogger("market_analyst.workflows.market_graph")
 
@@ -81,7 +82,7 @@ def intent_node(state: dict) -> dict:
     }
 
 
-def fundamental_node(state: dict) -> dict:
+async def fundamental_node(state: dict) -> dict:
     """Run fundamental analysis for all stocks in the state."""
     logger.info("=== Fundamental Analyst Node ===")
     stocks = state.get("stocks", [])
@@ -89,13 +90,13 @@ def fundamental_node(state: dict) -> dict:
 
     for ticker in stocks:
         logger.info("Running fundamental analysis for %s", ticker)
-        results[ticker] = analyze_fundamental(ticker)
+        results[ticker] = await analyze_fundamental(ticker)
 
     logger.info("Fundamental analysis complete for %d stocks", len(results))
     return {"fundamental_result": results}
 
 
-def technical_node(state: dict) -> dict:
+async def technical_node(state: dict) -> dict:
     """Run technical analysis for all stocks in the state."""
     logger.info("=== Technical Analyst Node ===")
     stocks = state.get("stocks", [])
@@ -103,13 +104,13 @@ def technical_node(state: dict) -> dict:
 
     for ticker in stocks:
         logger.info("Running technical analysis for %s", ticker)
-        results[ticker] = analyze_technical(ticker)
+        results[ticker] = await analyze_technical(ticker)
 
     logger.info("Technical analysis complete for %d stocks", len(results))
     return {"technical_result": results}
 
 
-def sentiment_node(state: dict) -> dict:
+async def sentiment_node(state: dict) -> dict:
     """Run sentiment analysis for all stocks in the state."""
     logger.info("=== Sentiment Analyst Node ===")
     stocks = state.get("stocks", [])
@@ -117,7 +118,7 @@ def sentiment_node(state: dict) -> dict:
 
     for ticker in stocks:
         logger.info("Running sentiment analysis for %s", ticker)
-        results[ticker] = analyze_sentiment(ticker)
+        results[ticker] = await analyze_sentiment(ticker)
 
     logger.info("Sentiment analysis complete for %d stocks", len(results))
     return {"sentiment_result": results}
@@ -208,68 +209,90 @@ def compile_market_graph():
     return compiled
 
 
-# ── Convenience Runners ───────────────────────────────────────────
+async def _check_and_run_graph(initial_state: dict) -> dict:
+    """Helper to check graph-level cache before running the full workflow."""
+    stocks = initial_state.get("stocks", [])
+    analysis_type = initial_state.get("analysis_type", "single")
+    
+    # Simple cache key based on intent, avoiding the raw user query
+    # E.g., 'single_RELIANCE.NS', 'compare_INFY.NS_TCS.NS'
+    cache_key = f"{analysis_type}_{'_'.join(sorted(stocks))}"
+    
+    # Attempt to fetch full graph result from cache
+    cached = await SQLiteMCPTool.get_cache("market_graph", cache_key, max_age_seconds=86400)
+    if cached:
+        logger.info("Graph cache HIT for %s", cache_key)
+        # Restore the original query strings for context
+        cached["query"] = initial_state.get("query", "")
+        cached["parsed_query"] = initial_state.get("parsed_query", "")
+        return cached
 
-
-def run_analysis(query: str) -> dict:
-    """
-    Run the full analysis pipeline from a free-form query.
-
-    This is the main entry point for the chat endpoint.
-    """
-    logger.info("Starting analysis pipeline for query: %r", query)
-
+    logger.info("Graph cache MISS for %s. Running workflow...", cache_key)
     compiled = compile_market_graph()
-    initial_state = {"query": query}
-
-    result = compiled.invoke(initial_state)
-    logger.info("Analysis pipeline complete: recommendation=%s", result.get("recommendation"))
+    result = await compiled.ainvoke(initial_state)
+    
+    # Save successful execution to cache
+    await SQLiteMCPTool.set_cache("market_graph", cache_key, result)
     return result
 
 
-def run_single_stock_analysis(ticker: str) -> dict:
+async def run_analysis(query: str) -> dict:
+    """
+    Run the full analysis pipeline from a free-form query.
+    1. Always run the intent analyzer (1 LLM call).
+    2. Check the graph cache for those parsed stocks.
+    3. Run graph on miss.
+    """
+    logger.info("Starting analysis pipeline for query: %r", query)
+
+    intent = analyze_intent(query)
+    initial_state = {
+        "query": query,
+        "stocks": intent["stocks"],
+        "analysis_type": intent["analysis_type"],
+        "parsed_query": intent["parsed_query"],
+    }
+
+    return await _check_and_run_graph(initial_state)
+
+
+async def run_single_stock_analysis(ticker: str) -> dict:
     """Run analysis for a single stock (typed endpoint)."""
     logger.info("Starting single stock analysis for %s", ticker)
 
-    compiled = compile_market_graph()
     initial_state = {
         "query": f"Analyze {ticker}",
         "stocks": [ticker],
         "analysis_type": "single",
+        "parsed_query": f"Analyze {ticker}",
     }
 
-    result = compiled.invoke(initial_state)
-    logger.info("Single stock analysis complete for %s", ticker)
-    return result
+    return await _check_and_run_graph(initial_state)
 
 
-def run_compare_stocks(ticker_a: str, ticker_b: str) -> dict:
+async def run_compare_stocks(ticker_a: str, ticker_b: str) -> dict:
     """Run comparison analysis for two stocks (typed endpoint)."""
     logger.info("Starting comparison: %s vs %s", ticker_a, ticker_b)
 
-    compiled = compile_market_graph()
     initial_state = {
         "query": f"Compare {ticker_a} and {ticker_b}",
         "stocks": [ticker_a, ticker_b],
         "analysis_type": "compare",
+        "parsed_query": f"Compare {ticker_a} and {ticker_b}",
     }
 
-    result = compiled.invoke(initial_state)
-    logger.info("Comparison analysis complete")
-    return result
+    return await _check_and_run_graph(initial_state)
 
 
-def run_portfolio_analysis(tickers: list[str]) -> dict:
+async def run_portfolio_analysis(tickers: list[str]) -> dict:
     """Run portfolio analysis for multiple stocks (typed endpoint)."""
     logger.info("Starting portfolio analysis for %s", tickers)
 
-    compiled = compile_market_graph()
     initial_state = {
         "query": f"Portfolio analysis: {', '.join(tickers)}",
         "stocks": tickers,
         "analysis_type": "portfolio",
+        "parsed_query": f"Portfolio analysis: {', '.join(tickers)}",
     }
 
-    result = compiled.invoke(initial_state)
-    logger.info("Portfolio analysis complete")
-    return result
+    return await _check_and_run_graph(initial_state)

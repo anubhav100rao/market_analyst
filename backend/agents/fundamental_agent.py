@@ -63,7 +63,7 @@ def _parse_llm_response(text: str) -> dict[str, Any]:
     return json.loads(cleaned)
 
 
-def analyze_fundamental(ticker: str) -> dict[str, Any]:
+async def analyze_fundamental(ticker: str) -> dict[str, Any]:
     """
     Run fundamental analysis for a single stock ticker.
 
@@ -77,10 +77,10 @@ def analyze_fundamental(ticker: str) -> dict[str, Any]:
 
     # 1. Fetch data via tools
     logger.info("Fetching key ratios for %s", ticker)
-    ratios = YahooFinanceTool.get_key_ratios(ticker)
+    ratios = await YahooFinanceTool.get_key_ratios(ticker)
 
     logger.info("Fetching financial statements for %s", ticker)
-    financials = YahooFinanceTool.get_financial_statements(ticker)
+    financials = await YahooFinanceTool.get_financial_statements(ticker)
 
     # 2. Check for data errors
     if "error" in ratios and "error" in financials:

@@ -55,7 +55,7 @@ def _parse_llm_response(text: str) -> dict[str, Any]:
     return json.loads(cleaned)
 
 
-def analyze_sentiment(ticker: str, max_news: int = 10) -> dict[str, Any]:
+async def analyze_sentiment(ticker: str, max_news: int = 10) -> dict[str, Any]:
     """
     Run sentiment analysis for a single stock ticker.
 
@@ -74,7 +74,7 @@ def analyze_sentiment(ticker: str, max_news: int = 10) -> dict[str, Any]:
     logger.info("Search query: %r", search_query)
 
     # 2. Fetch news
-    news_result = DuckDuckGoTool.search_news(search_query, max_results=max_news)
+    news_result = await DuckDuckGoTool.search_news(search_query, max_results=max_news)
     articles = news_result.get("results", [])
 
     if not articles:

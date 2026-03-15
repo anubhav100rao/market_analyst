@@ -35,6 +35,7 @@ from backend.workflows.market_graph import (
     run_portfolio_analysis,
     run_single_stock_analysis,
 )
+from backend.tools.sqlite_mcp_tool import SQLiteMCPTool
 
 logger = logging.getLogger("market_analyst.api.server")
 
@@ -45,7 +46,9 @@ logger = logging.getLogger("market_analyst.api.server")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("FastAPI server starting up")
+    await SQLiteMCPTool.initialize()
     yield
+    await SQLiteMCPTool.shutdown()
     logger.info("FastAPI server shutting down")
 
 
@@ -167,7 +170,7 @@ async def analyze_stock(request: AnalyzeStockRequest):
     logger.info("POST /analyze_stock – ticker=%s", request.stock)
 
     try:
-        result = run_single_stock_analysis(request.stock)
+        result = await run_single_stock_analysis(request.stock)
         return _build_response(result, AnalysisType.SINGLE)
     except Exception as e:
         logger.error("Error analyzing stock %s: %s", request.stock, e)
@@ -180,7 +183,7 @@ async def compare_stocks(request: CompareStocksRequest):
     logger.info("POST /compare_stocks – %s vs %s", request.stock_a, request.stock_b)
 
     try:
-        result = run_compare_stocks(request.stock_a, request.stock_b)
+        result = await run_compare_stocks(request.stock_a, request.stock_b)
         return _build_response(result, AnalysisType.COMPARE)
     except Exception as e:
         logger.error("Error comparing stocks: %s", e)
@@ -193,7 +196,7 @@ async def portfolio_analysis(request: PortfolioRequest):
     logger.info("POST /portfolio_analysis – stocks=%s", request.stocks)
 
     try:
-        result = run_portfolio_analysis(request.stocks)
+        result = await run_portfolio_analysis(request.stocks)
         return _build_response(result, AnalysisType.PORTFOLIO)
     except Exception as e:
         logger.error("Error analyzing portfolio: %s", e)
@@ -206,7 +209,7 @@ async def chat(request: ChatRequest):
     logger.info("POST /chat – query=%r", request.query)
 
     try:
-        result = run_analysis(request.query)
+        result = await run_analysis(request.query)
 
         # Determine type from result
         analysis_type_str = result.get("analysis_type", "single")

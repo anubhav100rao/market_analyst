@@ -1,0 +1,1 @@
+'Found 1 database(s):\n\n- /Users/anubhav100rao/development/market_analyst/market_analysis.db'

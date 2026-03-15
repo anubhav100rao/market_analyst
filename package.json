@@ -1,0 +1,28 @@
+{
+  "name": "market_analyst",
+  "version": "1.0.0",
+  "description": "AI-powered multi-agent system for stock market analysis. Uses specialized agents (Fundamental, Technical, Sentiment) orchestrated via LangGraph, with a FastAPI backend and Streamlit frontend.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anubhav100rao/market_analyst.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/anubhav100rao/market_analyst/issues"
+  },
+  "homepage": "https://github.com/anubhav100rao/market_analyst#readme",
+  "dependencies": {
+    "mcp-sqlite-server": "^1.0.1"
+  }
+}

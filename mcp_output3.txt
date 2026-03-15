@@ -1,0 +1,2 @@
+isError: True
+'Error: Write operations are not allowed in read-only mode. Set readonly=false to enable writes.'

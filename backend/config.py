@@ -42,6 +42,6 @@ logger.propagate = False
 
 # ── Env helpers ──────────────────────────────────────────────────
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite-preview")
 
 logger.info("Logger initialised – level=%s, file=%s", LOG_LEVEL, LOG_FILE)

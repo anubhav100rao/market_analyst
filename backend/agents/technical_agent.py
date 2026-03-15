@@ -155,7 +155,7 @@ def _calculate_indicators(price_data: list[dict]) -> dict[str, Any]:
     return indicators
 
 
-def analyze_technical(ticker: str, period: str = "1y") -> dict[str, Any]:
+async def analyze_technical(ticker: str, period: str = "1y") -> dict[str, Any]:
     """
     Run technical analysis for a single stock ticker.
 
@@ -169,7 +169,7 @@ def analyze_technical(ticker: str, period: str = "1y") -> dict[str, Any]:
     logger.info("Starting technical analysis for %s (period=%s)", ticker, period)
 
     # 1. Fetch price data
-    price_result = YahooFinanceTool.get_price_history(ticker, period=period)
+    price_result = await YahooFinanceTool.get_price_history(ticker, period=period)
     price_data = price_result.get("data", [])
 
     if not price_data:

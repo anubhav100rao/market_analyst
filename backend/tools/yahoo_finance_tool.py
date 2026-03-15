@@ -14,6 +14,8 @@ from typing import Any
 
 import yfinance as yf
 
+from backend.tools.sqlite_mcp_tool import SQLiteMCPTool
+
 logger = logging.getLogger("market_analyst.tools.yahoo_finance")
 
 
@@ -23,7 +25,7 @@ class YahooFinanceTool:
     # ── Price History ──────────────────────────────────────────────
 
     @staticmethod
-    def get_price_history(
+    async def get_price_history(
         ticker: str,
         period: str = "1y",
     ) -> dict[str, Any]:
@@ -38,6 +40,11 @@ class YahooFinanceTool:
             dict with keys: ticker, period, data (list of OHLCV dicts), count
         """
         logger.info("Fetching price history for %s, period=%s", ticker, period)
+        cache_key = f"{ticker}_{period}"
+        cached = await SQLiteMCPTool.get_cache("yahoo_finance_history", cache_key)
+        if cached:
+            return cached
+
         try:
             stock = yf.Ticker(ticker)
             hist = stock.history(period=period)
@@ -66,12 +73,14 @@ class YahooFinanceTool:
             logger.info(
                 "Retrieved %d price records for %s", len(records), ticker
             )
-            return {
+            result = {
                 "ticker": ticker,
                 "period": period,
                 "data": records,
                 "count": len(records),
             }
+            await SQLiteMCPTool.set_cache("yahoo_finance_history", cache_key, result)
+            return result
 
         except Exception as e:
             logger.error("Error fetching price history for %s: %s", ticker, e)
@@ -86,7 +95,7 @@ class YahooFinanceTool:
     # ── Financial Statements ──────────────────────────────────────
 
     @staticmethod
-    def get_financial_statements(ticker: str) -> dict[str, Any]:
+    async def get_financial_statements(ticker: str) -> dict[str, Any]:
         """
         Fetch income statement, balance sheet, and cash flow.
 
@@ -95,6 +104,11 @@ class YahooFinanceTool:
             Each value is a list of dicts (one per period).
         """
         logger.info("Fetching financial statements for %s", ticker)
+        
+        cached = await SQLiteMCPTool.get_cache("yahoo_finance_financials", ticker)
+        if cached:
+            return cached
+
         try:
             stock = yf.Ticker(ticker)
 
@@ -121,12 +135,14 @@ class YahooFinanceTool:
                 ticker, len(income), len(balance), len(cashflow),
             )
 
-            return {
+            result = {
                 "ticker": ticker,
                 "income_statement": income,
                 "balance_sheet": balance,
                 "cash_flow": cashflow,
             }
+            await SQLiteMCPTool.set_cache("yahoo_finance_financials", ticker, result)
+            return result
 
         except Exception as e:
             logger.error("Error fetching financials for %s: %s", ticker, e)
@@ -141,7 +157,7 @@ class YahooFinanceTool:
     # ── Key Ratios ────────────────────────────────────────────────
 
     @staticmethod
-    def get_key_ratios(ticker: str) -> dict[str, Any]:
+    async def get_key_ratios(ticker: str) -> dict[str, Any]:
         """
         Fetch key financial ratios and metrics.
 
@@ -149,6 +165,11 @@ class YahooFinanceTool:
                            debt_to_equity, revenue, earnings_growth
         """
         logger.info("Fetching key ratios for %s", ticker)
+        
+        cached = await SQLiteMCPTool.get_cache("yahoo_finance_ratios", ticker)
+        if cached:
+            return cached
+
         try:
             stock = yf.Ticker(ticker)
             info = stock.info or {}
@@ -175,6 +196,7 @@ class YahooFinanceTool:
                 ratios["pe_ratio"] or 0,
                 ratios["market_cap"],
             )
+            await SQLiteMCPTool.set_cache("yahoo_finance_ratios", ticker, ratios)
             return ratios
 
         except Exception as e:
