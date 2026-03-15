@@ -1,0 +1,32 @@
+# API framework
+fastapi>=0.110.0
+uvicorn>=0.29.0
+
+# Frontend
+streamlit>=1.32.0
+
+# LLM orchestration
+langgraph>=0.2.0
+langchain>=0.3.0
+langchain-google-genai>=2.0.0
+
+# Data & analysis
+yfinance>=0.2.36
+pandas>=2.2.0
+pandas-ta>=0.3.14b
+
+# Search
+duckduckgo-search>=5.0.0
+
+# Data validation
+pydantic>=2.6.0
+
+# Config
+python-dotenv>=1.0.0
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+
+# HTTP
+httpx>=0.27.0
